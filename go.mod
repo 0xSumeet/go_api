@@ -1,4 +1,4 @@
-module go_gin_api
+module github.com/0xSumeet/go_api
 
 go 1.23.0
 
