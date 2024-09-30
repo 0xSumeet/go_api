@@ -129,7 +129,7 @@ func getProductsPaginated(c *gin.Context) {
 		return
 	}
 
-	limitStr := c.DefaultQuery("limit", "5")
+	limitStr := c.DefaultQuery("limit", "10")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit > maximumLimit {
 		c.JSON(
