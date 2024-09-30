@@ -3,10 +3,11 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"go_gin_api/jwt"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/0xSumeet/go_api/jwt"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -47,12 +48,10 @@ func init() {
 		log.Fatalf("Error Connecting DB: %s", err)
 	}
 
-	// Ping database
+	// Ping database, and confirming connection
 	if err = db.Ping(); err != nil {
 		log.Fatalf("Error pinging db: %s", err)
 	}
-  
-	// Confirming Connection
 	fmt.Println("Database connected!")
 }
 
@@ -62,24 +61,13 @@ func main() {
 	router.GET("/", home)
 
 	router.POST("/signup", signUp)
-	//	router.POST("/signin", signIn)
-	router.POST("/logjwt", logJWT)
+	router.POST("/login", login)
 
-	// Public Route
-	//	router.POST("/login", login)
-
-	// Protected route
 	authorized := router.Group("/sec", jwt.AuthMiddleware())
 	{
 		authorized.GET("/products", getProductsPaginated)
 		authorized.GET("/product/:id", retriveProductByID)
 	}
-
-	//	router.GET("/products", retriveProducts)
-
-	// Retrive paginated products
-	// router.GET("/products", getProductsPaginated)
-	// router.POST("/")
 	router.Run(":4000")
 }
 
@@ -88,39 +76,6 @@ func home(c *gin.Context) {
 		"message": "home page",
 	})
 }
-
-/*
-func retriveProducts(c *gin.Context) {
-	// Query to get all products
-	rows, err := db.Query(
-		"SELECT product_id, product_name, category, stock_quantity, price FROM products",
-		// or "SELECT * FROM products"
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, map[string]any{"error": err.Error()})
-	}
-	defer rows.Close()
-
-	var products []Product
-
-	// Loop through the rows and append each product to the slice
-	for rows.Next() {
-		var product Product
-		if err := rows.Scan(&product.ID, &product.ProductName, &product.Category, &product.StockQuantity, &product.Price); err != nil {
-			c.JSON(http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		}
-		products = append(products, product)
-	}
-
-	// Check for errors during row iteration
-	if err = rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, map[string]any{"error": err.Error()})
-	}
-
-	// Return the products as JSON
-	c.JSON(http.StatusOK, products)
-}
-*/
 
 func retriveProductByID(c *gin.Context) {
 	// Get the 'id' parameter from the URL and convert it to an integer
@@ -173,10 +128,6 @@ func getProductsPaginated(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, map[string]any{"error": "Invalid page number"})
 		return
 	}
-
-	// Get limit from query parameters (defaults to 5 if not provided)
-	//	limit := c.Param("limit")
-	// limitVal, _:= strconv.Atoi(limit)
 
 	limitStr := c.DefaultQuery("limit", "5")
 	limit, err := strconv.Atoi(limitStr)
@@ -274,6 +225,7 @@ func getProductsPaginated(c *gin.Context) {
 	c.Header("X-Total-Count", strconv.Itoa(totalProducts))
 	c.Header("Total-Pages", strconv.Itoa(totalProducts/limit))
 
+	// Return products as JSON
 	c.JSON(http.StatusOK, products)
 	if products == nil {
 		c.JSON(
@@ -283,53 +235,7 @@ func getProductsPaginated(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusOK, map[string]any{"message": "Products", "status": "success"})
 	}
-	/*
-			// Return the products as JSON
-		  if products == nil {
-		    c.JSON(http.StatusBadRequest, map[string]any{"message":"no data", "status":"failure"})
-		  } else {
-		    c.JSON(http.StatusOK, products, map[string]any{"message":"Products", "status":"success"})
-		  }
-	*/
 }
-
-/*
-// Login handler using hardcoded password
-func login(c *gin.Context) {
-	//
-	var creds struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-
-	// Bind the request JSON to the struct
-	if err := c.ShouldBindJSON(&creds); err != nil {
-		c.JSON(http.StatusBadRequest, map[string]any{"error": "Invalid Request"})
-		return
-	}
-
-	// For Demo Purpose, accept any user with a non-empty username and password
-	if creds.Username == "" || creds.Password == "" {
-		c.JSON(http.StatusUnauthorized, map[string]any{"error": "Invalid Credentails"})
-		return
-	}
-
-	// Generate the JWT Token
-	token, err := jwt.GenerateJWT(creds.Username)
-	if err != nil {
-		c.JSON(
-			http.StatusInternalServerError,
-			map[string]any{"error": "Failed to generate JWT token"},
-		)
-		return
-	}
-
-	// Send the token as response
-	c.JSON(http.StatusOK, map[string]any{
-		"token": token,
-	})
-}
-*/
 
 func signUp(c *gin.Context) {
 	var user User
@@ -391,44 +297,10 @@ func signUp(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]any{
 		"message": "success",
 	})
-  c.Header("Token", token)
+	c.Header("Token", token)
 }
 
-/*
-func signIn(c *gin.Context) {
-	var user User
-
-	// Bind JSON input to the user struct
-	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, map[string]any{"error": err.Error()})
-		return
-	}
-
-	// Query the database for the stored password
-	var storedHashedPassword string
-
-	err := db.QueryRow("SELECT password FROM users where email=$1", user.Email).
-		Scan(&storedHashedPassword)
-	if err == sql.ErrNoRows {
-		c.JSON(http.StatusUnauthorized, map[string]any{"message": "Invalid email or password"})
-		return
-	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, map[string]any{"message": "database error"})
-		return
-	}
-
-	// Compare the password
-	if err = bcrypt.CompareHashAndPassword([]byte(storedHashedPassword), []byte(user.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, map[string]any{"message": "invalid password"})
-		return
-	}
-
-	userLogin := fmt.Sprintf("%s logged in successfully", user.Name)
-	c.JSON(http.StatusOK, map[string]any{"message": userLogin})
-}
-*/
-
-func logJWT(c *gin.Context) {
+func login(c *gin.Context) {
 	var user User
 	var err error
 
