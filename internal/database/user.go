@@ -5,10 +5,15 @@ import (
 	"fmt"
 
 	"github.com/0xSumeet/go_api/internal/models"
-	"golang.org/x/crypto/bcrypt"
 
 	_ "github.com/lib/pq"
 )
+
+type User struct {
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
 
 // Check if email field already exist in the database
 func CheckIfEmailExists(user models.User) (bool, error) {
@@ -26,8 +31,6 @@ func CheckIfEmailExists(user models.User) (bool, error) {
 
 // Check if email or password field is empty
 func CheckIfEmailOrPasswordFieldEmpty(user models.User) (bool, error) {
-	// var user models.User
-
 	// Check if email is empty
 	if user.Email == "" {
 		return true, fmt.Errorf("please provide the email")
@@ -36,7 +39,6 @@ func CheckIfEmailOrPasswordFieldEmpty(user models.User) (bool, error) {
 	if user.Password == "" {
 		return true, fmt.Errorf("please provide the password")
 	}
-
 	return false, nil
 }
 
@@ -49,6 +51,22 @@ func InsertUser(user models.User) (models.User, error) {
 		return models.User{}, fmt.Errorf("could not create user")
 	}
 	return user, nil
+}
+
+// Insert User to the database
+func CreateUser(user *User) (*models.UserResponse, error) {
+	var err error
+	query := "INSERT INTO users (email, name, password) VALUES ($1, $2, $3)"
+	_, err = DB.Exec(query, user.Email, user.Name, user.Password)
+	if err != nil {
+		return &models.UserResponse{}, fmt.Errorf("could not create user")
+	}
+
+	newUserResponse := models.UserResponse{
+		Email: user.Email,
+		Name:  user.Name,
+	}
+	return &newUserResponse, nil
 }
 
 // Fetch password hash from the database
@@ -64,10 +82,3 @@ func FetchPasswordHash(user models.User) (string, error) {
 	return storedHashedPassword, nil
 }
 
-// Compare user input password with the hash password from the database
-func CompareHashPasswords(hash string, userpassword string) (bool, error) {
-	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(userpassword)); err != nil {
-		return false, fmt.Errorf("invalid password")
-	}
-	return true, nil
-}

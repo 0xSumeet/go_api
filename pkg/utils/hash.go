@@ -1,10 +1,12 @@
 package utils
 
 import (
+  "fmt"
 	"golang.org/x/crypto/bcrypt"
   "github.com/0xSumeet/go_api/internal/models"
 )
 
+// Generate Password hash
 func GenerateHash(password string) (string, error) {
   var user models.User
   var err error
@@ -15,5 +17,13 @@ func GenerateHash(password string) (string, error) {
   return string(hash), nil
 }
 
-//func CompareHash(models.User, dbPassword) bool {}
+// Compare user input password with the hash password from the database
+func CompareHashPasswords(hash string, userpassword string) (bool, error) {
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(userpassword)); err != nil {
+		return false, fmt.Errorf("invalid password")
+	}
+	return true, nil
+}
+
+
 
