@@ -24,5 +24,12 @@ func Init() {
 	if err = DB.Ping(); err != nil {
 		log.Fatalf("Error pinging database: %s", err)
 	}
-	fmt.Println("Database connected!")
+
+	// Set the time zone to 'Asia/Kolkata' (IST)
+	_, err = DB.Exec("SET TIME ZONE 'Asia/Kolkata'")
+	if err != nil {
+		log.Fatalf("Error setting time zone: %s", err)
+	}
+
+	fmt.Println("Database connected and time zone set to Asia/Kolkata!")
 }

@@ -17,7 +17,7 @@ type Claims struct {
 // Generate token
 func GenerateJWT(username string) (string, error) {
 	// Define expiration time of the token
-	expirationTime := time.Now().Add(24 * time.Hour)
+	expirationTime := time.Now().Add(5 * time.Minute)
 
 	// Create claims, which includes the username and the expiry time
 	claims := &Claims{

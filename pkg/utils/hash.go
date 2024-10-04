@@ -3,12 +3,12 @@ package utils
 import (
   "fmt"
 	"golang.org/x/crypto/bcrypt"
-  "github.com/0xSumeet/go_api/internal/models"
+  "github.com/0xSumeet/go_api/internal/database"
 )
 
 // Generate Password hash
 func GenerateHash(password string) (string, error) {
-  var user models.User
+  var user database.User
   var err error
   hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)  
   if err != nil {

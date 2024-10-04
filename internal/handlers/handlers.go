@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/0xSumeet/go_api/internal/database"
-	"github.com/0xSumeet/go_api/internal/models"
 	"github.com/0xSumeet/go_api/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +42,43 @@ func GetProducts(c *gin.Context) {
 
 	// Return the product in JSON
 	c.JSON(http.StatusOK, queryResult)
+}
+
+func UpdateProduct(c *gin.Context) {
+  // Get the 'id' parameter from the URL and convert it to an integer
+  idParam := c.Param("id")
+
+  // Convert string to int
+  id, err := strconv.Atoi(idParam)
+  if err != nil {
+    c.JSON(http.StatusBadRequest, map[string]any{"error":"Invalid Product id"})
+    return
+  }
+
+	var product database.Product
+
+	if err := c.ShouldBindJSON(&product); err != nil {
+		c.JSON(http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+  
+  _, err = utils.CheckProductFields(product)
+  if err != nil {
+    c.JSON(http.StatusBadRequest, map[string]any{"status":"failure", "error": err.Error()})
+    return
+  }
+
+  product.ID = id
+	updatedProduct, err := database.UpdateProductField(&product)
+	if err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			map[string]any{"message": "Could not update product", "error": err.Error()},
+		)
+		return
+	}
+
+	c.JSON(http.StatusOK, map[string]any{"message": "success", "data": updatedProduct})
 }
 
 func GetProductById(c *gin.Context) {
@@ -92,7 +128,7 @@ func SignUp(c *gin.Context) {
 
 		var req userRequest
 	*/
-	var user models.User
+	var user database.User
 	var err error
 
 	// Bind JSON input to the user struct
@@ -102,7 +138,7 @@ func SignUp(c *gin.Context) {
 	}
 
 	// Check if empty field
-	_, err = database.CheckIfEmailOrPasswordFieldEmpty(user)
+	_, err = utils.CheckIfEmailOrPasswordFieldEmpty(user)
 	if err != nil {
 		c.JSON(
 			http.StatusInternalServerError,
@@ -142,7 +178,7 @@ func SignUp(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	var user models.User
+	var user database.User
 	//	var err error
 
 	if err := c.ShouldBindJSON(&user); err != nil {
@@ -151,7 +187,7 @@ func Login(c *gin.Context) {
 	}
 
 	// Check if empty field
-	_, err := database.CheckIfEmailOrPasswordFieldEmpty(user)
+	_, err := utils.CheckIfEmailOrPasswordFieldEmpty(user)
 	if err != nil {
 		c.JSON(
 			http.StatusInternalServerError,
@@ -160,7 +196,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// Query the database for the stored password and
+	// Query the database for the stored password using FetchPasswordHash function and
 	// fetch the hash password
 	hashPassword, err := database.FetchPasswordHash(user)
 	if err != nil {
@@ -237,4 +273,157 @@ func GetProductsByLimit(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusOK, map[string]any{"message": "Products", "status": "success"})
 	}
+}
+
+type UserResponse struct {
+	ID    int    `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
+/*
+type UserRequest struct {
+	ID       int    `json:"id"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+*/
+
+func SignUpTry(c *gin.Context) {
+	var userRequest struct {
+		ID       int    `json:"id"`
+		Email    string `json:"email"`
+		Name     string `json:"name"`
+		Password string `json:"password"`
+	}
+
+	var user database.User
+	var err error
+
+	// Bind JSON input to the user struct
+	if err := c.ShouldBindJSON(&userRequest); err != nil {
+		c.JSON(http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+
+	// Check if email empty, name or password field empty
+	if userRequest.Email == "" {
+		c.JSON(http.StatusBadRequest, map[string]any{"error": "please provide the email"})
+		return
+	}
+	// Check if name is empty
+	if userRequest.Name == "" {
+		c.JSON(http.StatusBadRequest, map[string]any{"error": "please provide the name"})
+		return
+	}
+	// Check if password is empty
+	if userRequest.Password == "" {
+		c.JSON(http.StatusBadRequest, map[string]any{"error": "please provide the password"})
+		return
+	}
+
+	//	return false, nil
+	/*
+			// Check if empty field
+		  _, err := utils.CheckIfEmailOrPasswordFieldEmptyTry(&utils.UserRequest)
+			if err != nil {
+				c.JSON(
+					http.StatusInternalServerError,
+					map[string]any{"error": err.Error()},
+				)
+				return
+			}
+	*/
+
+	email := database.User{
+		Email: userRequest.Email,
+	}
+
+	// Check if email exist
+	emailExist, err := database.CheckIfEmailExists(email)
+	if emailExist {
+		message := fmt.Sprintf("this email alreadyy exists")
+		c.JSON(http.StatusConflict, map[string]any{"error": message})
+		return
+	}
+
+	// Password Hashing
+	hashedPassword, err := utils.GenerateHash(user.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, map[string]any{"error": "Could not hash password"})
+		return
+	}
+
+	// Store the password hash in user.Password field
+	user.Password = hashedPassword
+
+	response, err := database.CreateNewUser(&database.User{
+		ID:       userRequest.ID,
+		Name:     userRequest.Name,
+		Email:    userRequest.Email,
+		Password: userRequest.Password,
+	})
+	/*
+		// Insert New User
+		_, err = database.InsertUser(user)
+	*/if err != nil {
+		c.JSON(http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+
+	userResponse := UserResponse{
+		ID:    response.ID,
+		Email: response.Email,
+		Name:  response.Name,
+	}
+
+	/*
+		// Respond with success
+		userCreated := fmt.Sprintf("%s created successfully", Response.Name)
+		c.JSON(http.StatusCreated, map[string]any{"message": userCreated, "status": "success"})
+	*/
+
+	c.JSON(http.StatusCreated, map[string]any{"message": userResponse, "status": "success"})
+}
+
+func UpdateUser(c *gin.Context) {
+	var userRequest struct {
+		ID    int    `json:"id"`
+		Email string `json:"email"`
+		Name  string `json:"name"`
+	}
+
+	// Bind JSON input to the user struct
+	if err := c.ShouldBindJSON(&userRequest); err != nil {
+		c.JSON(http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+
+	response, err := database.UpdateUser(&database.User{
+		ID:    userRequest.ID,
+		Email: userRequest.Email,
+		Name:  userRequest.Name,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, map[string]any{"message": response, "status": "success"})
+}
+
+func AddProduct(c *gin.Context) {
+	var product database.Product
+
+	if err := c.ShouldBindJSON(&product); err != nil {
+		c.JSON(http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	query, err := database.CreateProduct(&product)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, map[string]any{"message": "success", "data": query})
 }
