@@ -45,15 +45,15 @@ func GetProducts(c *gin.Context) {
 }
 
 func UpdateProduct(c *gin.Context) {
-  // Get the 'id' parameter from the URL and convert it to an integer
-  idParam := c.Param("id")
+	// Get the 'id' parameter from the URL and convert it to an integer
+	idParam := c.Param("id")
 
-  // Convert string to int
-  id, err := strconv.Atoi(idParam)
-  if err != nil {
-    c.JSON(http.StatusBadRequest, map[string]any{"error":"Invalid Product id"})
-    return
-  }
+	// Convert string to int
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, map[string]any{"error": "Invalid Product id"})
+		return
+	}
 
 	var product database.Product
 
@@ -61,14 +61,14 @@ func UpdateProduct(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-  
-  _, err = utils.CheckProductFields(product)
-  if err != nil {
-    c.JSON(http.StatusBadRequest, map[string]any{"status":"failure", "error": err.Error()})
-    return
-  }
 
-  product.ID = id
+	_, err = utils.CheckProductFields(product)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, map[string]any{"status": "failure", "error": err.Error()})
+		return
+	}
+
+	product.ID = id
 	updatedProduct, err := database.UpdateProductField(&product)
 	if err != nil {
 		c.JSON(
@@ -157,6 +157,7 @@ func SignUp(c *gin.Context) {
 
 	// Password Hashing
 	hashedPassword, err := utils.GenerateHash(user.Password)
+	fmt.Println(hashedPassword)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, map[string]any{"error": "Could not hash password"})
 		return
@@ -362,7 +363,7 @@ func SignUpTry(c *gin.Context) {
 		ID:       userRequest.ID,
 		Name:     userRequest.Name,
 		Email:    userRequest.Email,
-		Password: userRequest.Password,
+		Password: user.Password,
 	})
 	/*
 		// Insert New User
